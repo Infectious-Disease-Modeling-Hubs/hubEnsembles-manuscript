@@ -1,13 +1,13 @@
 ---
 title: "[hubEnsembles]{.pkg}: Ensembling Methods in [R]{.proglang}"
+number-sections: true
 format:
-  jss-pdf:
+  pdf:
     keep-tex: true
     journal:
       type: article
       cite-shortnames: true
       suppress: [title]
-      include-jss-default: false
 author:
   - name: Li Shandross
     affiliations:
@@ -34,9 +34,7 @@ author:
     affiliations:
       - R-RSE SMPC
     orcid: 0000-0002-2378-4915
-  - name: |
-      | Consortium of 
-      | Infectious Disease Modeling Hubs
+  - name: Consortium of Infectious Disease Modeling Hubs
     affiliations:
       - A list of authors and their affiliations appears at the end of the paper
   - name: Nicholas G. Reich
@@ -52,6 +50,7 @@ execute:
   warning: false
   message: false
 bibliography: references.bib
+csl: american-medical-association.csl
 abstract: |
   Combining predictions from multiple models into an ensemble is a widely used practice across many fields with demonstrated performance benefits. The [R]{.proglang} package [hubEnsembles]{.pkg} provides a flexible framework for ensembling various types of predictions, including point estimates and probabilistic predictions. A range of common methods for generating ensembles are supported, including weighted averages, quantile averages, and linear pools. The [hubEnsembles]{.pkg} package fits within a broader framework of open-source software and data tools called the "hubverse", which facilitates the development and management of collaborative modelling exercises.
 
@@ -100,7 +99,8 @@ using any function $C$ and any set of model-specific weights $\pmb{w}$. For exam
 
 For probabilistic predictions, there are two commonly used classes of methods to average or ensemble multiple predictions: quantile averaging (also called a Vincent average [@vincent1912]) and probability averaging (also called a distributional mixture or linear opinion pool [@stone1961]) [@lichtendahl2013]. To define these two classes of methods, let $F(x)$ be a cumulative density function (CDF) defined over values $x$ of the target variable for the prediction, and $F^{-1}(\theta)$ be the corresponding quantile function defined over quantile levels $\theta \in [0, 1]$. Throughout this article, we may refer to $x$ as either a 'value of the target variable' or a 'quantile' depending on the context, and similarly we may refer to $\theta$ as either a 'quantile level' or a '(cumulative) probability'. Additionally, we will use $f(x)$ to denote a probability mass function (PMF) for a prediction of a discrete variable or a discretization (such as binned values) of a continuous variable.
 
-The quantile average combines a set of quantile functions, $\mathcal{Q} = \{F_i^{-1}(\theta)| i \in 1,...,N \}$, with a given set of weights, $\pmb{w}$, as $$
+The quantile average combines a set of quantile functions, $\mathcal{Q} = \{F_i^{-1}(\theta)| i \in 1,...,N \}$, with a given set of weights, $\pmb{w}$, as 
+$$
 F^{-1}_Q(\theta) = C_Q(\mathcal{Q}, \pmb{w}) = \sum_{i = 1}^Nw_iF^{-1}_i(\theta).
 $$
 
@@ -147,16 +147,13 @@ hubExamples::forecast_outputs |>
     output_type == "quantile",
     output_type_id %in% c(0.25, 0.5, 0.75)
   ) |>
-  dplyr::mutate(value=round(value, 2), 
-                model_id = "model-X") |>
+  dplyr::mutate(value = round(value, 2), model_id = "model-X") |>
   dplyr::select(all_of(abbr_fc_col)) |>
   dplyr::arrange(horizon) |>
   knitr::kable(col.names = formatted_fc_col)
 ```
 
 Alternatively, longer-term scenario projections may require different task ID columns. For example, projections of incident COVID-19 cases in the US at different locations, amounts of time in the future, and under different assumed conditions may use a `target` column of "inc case", a `location` column specifying the location being predicted (not shown), an `origin_date` column specifying the date on which the projections were made (not shown), a `horizon` column describing the number of steps ahead that the projection is predicting relative to the `origin_date`, and a `scenario_id` column denoting the future conditions that were modeled and are projected to result in the specified number of incident cases (@tbl-example-scenarios). Different modeling efforts may use different sets of task ID columns and values to specify their prediction goals, or may simply choose distinct names to represent the same concept (e.g., `reference_date` versus `origin_date` for a date task ID). Additional examples of task ID variables are available on the hubverse documentation website [@hubverse_docs].
-
-\newpage
 
 ```{r example-scenarios, echo=FALSE}
 #| label: tbl-example-scenarios
@@ -179,43 +176,46 @@ hubExamples::scenario_outputs |>
     output_type_id %in% c(0.25, 0.5, 0.75)
   ) |>
   dplyr::select(all_of(abbr_scn_col)) |>
-  dplyr::mutate(model_id = "model-Y", 
-                scenario_id = substr(scenario_id,1,1)) |>
+  dplyr::mutate(
+    model_id = "model-Y",
+    scenario_id = substr(scenario_id, 1, 1)
+  ) |>
   knitr::kable(col.names = formatted_scn_col)
 ```
 
-The third group of columns in model output specify the model predictions and details about how the predictions are represented. This "model output representation" includes the predicted values along with metadata that specifies how the predictions are conveyed and always consists of the same three columns: (1) `output_type`, (2) `output_type_id`, and (3) `value`. The `output_type` column defines how the prediction is represented and may be one of `"mean"` or `"median"` for point predictions, or `"quantile"`, `"cdf"`, `"pmf"`, or `"sample"` for probabilistic predictions. (The sample output type is not yet directly supported by the [hubEnsembles]{.pkg} package and should be converted to another output type before computing an ensemble.) The `output_type_id` provides additional identifying information for a prediction and is specific to the particular `output_type` (see @tbl-model-output-rep). For quantile predictions, the `output_type_id` is a numeric value between 0 and 1 specifying the cumulative probability associated with the quantile prediction. In the notation we defined above, the `output_type_id` corresponds to $\theta$ and the `value` is the quantile prediction $F^{-1}(\theta)$. For CDF or PMF predictions, the `output_type_id` is the target variable value $x$ at which the cumulative distribution function or probability mass function for the predictive distribution should be evaluated, and the `value` column contains the predicted $F(x)$ or $f(x)$, respectively. Requirements for the values of the `output_type_id` and `value` columns associated with each valid output type are summarized in @tbl-model-output-rep.
+The third group of columns in model output specify the model predictions and details about how the predictions are represented. This "model output representation" includes the predicted values along with metadata that specifies how the predictions are conveyed and always consists of the same three columns: (1) `output_type`, (2) `output_type_id`, and (3) `value`. The `output_type` column defines how the prediction is represented and may be one of `"mean"` or `"median"` for point predictions, or `"quantile"`, `"cdf"`, `"pmf"`, or `"sample"` for probabilistic predictions. The `output_type_id` provides additional identifying information for a prediction and is specific to the particular `output_type` (see @tbl-model-output-rep). For quantile predictions, the `output_type_id` is a numeric value between 0 and 1 specifying the cumulative probability associated with the quantile prediction. In the notation we defined above, the `output_type_id` corresponds to $\theta$ and the `value` is the quantile prediction $F^{-1}(\theta)$. For CDF or PMF predictions, the `output_type_id` is the target variable value $x$ at which the cumulative distribution function or probability mass function for the predictive distribution should be evaluated, and the `value` column contains the predicted $F(x)$ or $f(x)$, respectively. Requirements for the values of the `output_type_id` and `value` columns associated with each valid output type are summarized in @tbl-model-output-rep.
 
 This representation of predictive model output is codified by the `model_out_tbl` S3 class in the [hubUtils]{.pkg} package, one of the foundational hubverse packages. Although this S3 class is required for all [hubEnsembles]{.pkg} functions, model predictions in other formats can easily be transformed using the `as_model_out_tbl()` function from [hubUtils]{.pkg}. An example of this transformation is provided in @sec-case-study.
 
 | `output_type` | `output_type_id`                                                                            | `value`                                                                                                                                                       |
-|:-----------------|:----------------------|:------------------------------|
+|:--------------|:---------------------------|:-----------------------------------|
 | `mean`        | NA (not used for mean predictions)                                                          | Numeric: The mean of the predictive distribution                                                                                                              |
 | `median`      | NA (not used for median predictions)                                                        | Numeric: The median of the predictive distribution                                                                                                            |
 | `quantile`    | Numeric between 0.0 and 1.0: A quantile level                                               | Numeric: The quantile of the predictive distribution at the quantile level specified by the `output_type_id`                                                  |
-| `cdf`         | String or numeric naming a possible value of the target variable | Numeric between 0.0 and 1.0: The cumulative probability of the predictive distribution at the value of the outcome variable specified by the `output_type_id` |
+| `cdf`         | String or numeric naming a possible value of the target variable                            | Numeric between 0.0 and 1.0: The cumulative probability of the predictive distribution at the value of the outcome variable specified by the `output_type_id` |
 | `pmf`         | String naming a possible category of a discrete outcome variable                            | Numeric between 0.0 and 1.0: The probability mass of the predictive distribution when evaluated at a specified level of a discrete outcome variable           |
-| `sample`*      | Integer or string specifying the sample index                                               | Numeric: A sample from the predictive distribution                                                                                                            |
+| `sample`      | Integer or string specifying the sample index                                               | Numeric: A sample from the predictive distribution                                                                                                            |
 
-: A table summarizing how the model output representation columns are used for predictions of different output types. *Sample output types are not yet supported by the [hubEnsembles]{.pkg} package. Adapted from <https://hubverse.io/en/latest/user-guide/model-output.html#formats-of-model-output> {#tbl-model-output-rep}
+: A table summarizing how the model output representation columns are used for predictions of different output types. Adapted from <https://hubverse.io/en/latest/user-guide/model-output.html#formats-of-model-output> {#tbl-model-output-rep}
 
 ### Ensemble functions in hubEnsembles {#sec-ens-fns}
 
 The [hubEnsembles]{.pkg} package includes two functions that perform ensemble calculations: `simple_ensemble()`, which applies some function to each model prediction, and `linear_pool()`, which computes an ensemble using the linear opinion pool method. In the following sections, we outline the implementation details for each function and how these implementations correspond to the statistical ensembling methods described in @sec-defs. A short description of the calculation performed by each function is summarized by output type in @tbl-fns-by-output-type.
 
+| `output_type` | `simple_ensemble(..., agg_fun=mean)`                                                          | `linear_pool()`                                                                                                                                                          |
+|---------------|--------------------------------|--------------------------------|
+| `mean`        | mean of individual model means                                                                | mean of individual model means                                                                                                                                           |
+| `median`      | mean of individual model medians                                                              | NA                                                                                                                                                                       |
+| `quantile`    | mean of individual model target variable values at each quantile level, $F^{-1}_Q(\theta)$    | quantiles of the distribution are obtained by computing the mean of estimated individual model cumulative probabilities at each target variable value, $F^{-1}_{LOP}(\theta)$ |
+| `cdf`         | mean of individual model cumulative probabilities at each target variable value, $F_{LOP}(x)$ | mean of individual model cumulative probabilities at each target variable value, $F_{LOP}(x)$                                                                            |
+| `pmf`         | mean of individual model bin or category probabilities at each target variable value, $f_{LOP}(x)$ | mean of individual model bin or category probabilities at each target variable value, $f_{LOP}(x)$                                                                                   |
+| `sample`      | NA                                                                                            | samples of the distribution are obtained by stratified draw from individual models' samples for equal representation |
+
+: Summary of ensemble function calculations for each output type. The ensemble function determines the operation that is performed, and in the case of probabilistic output types (quantile, CDF, PMF), this also determines what ensemble distribution is generated (quantile average, $F_{Q}^{-1}(\theta)$, or linear pool, $F_{LOP}(x)$). The ensembled predictions are returned in the same output type as the inputs. Thus, the output type determines how the resulting ensemble distribution is summarized (as a quantile, $F^{-1}(\theta)$, cumulative probability, $F(x)$, or probability $f(x)$). Estimating individual model cumulative probabilities is required to compute a `linear_pool()` for predictions of `quantile` output type; see @sec-linear-pool on the linear pool operation for details. In the case of `simple_ensemble()`, we show the calculations for the default case where `agg_fun = mean`; however, if another aggregation function is chosen (e.g., `agg_fun = median`), that calculation would be performed instead. For example, `simple_ensemble(..., agg_fun = median)` applied to predictions of mean output type would return the median of individual model means. {#tbl-fns-by-output-type}{tbl-colwidths="\[14,50,36\]"}
+
 #### Simple ensemble {#sec-simple-ensemble}
 
 The `simple_ensemble()` function directly computes an ensemble from component model outputs by combining them via some function ($C$) within each unique combination of task ID variables, output types, and output type IDs. This function can be used to summarize predictions of output types mean, median, quantile, CDF, and PMF. The mechanics of the ensemble calculations are the same for each of the output types, though the resulting statistical ensembling method differs for different output types (@tbl-fns-by-output-type).
-
-| `output_type` | `simple_ensemble(..., agg_fun=mean)`                                                          | `linear_pool()`                                                                                                                                                          |
-|------------------|---------------------------|---------------------------|
-| `mean`        | mean of individual model means                                                                | mean of individual model means                                                                                                                                           |
-| `median`      | mean of individual model medians                                                              | NA                                                                                                                                                                       |
-| `quantile`    | mean of individual model target variable values at each quantile level, $F^{-1}_Q(\theta)$    | quantile of the distribution obtained by computing the mean of estimated individual model cumulative probabilities at each target variable value, $F^{-1}_{LOP}(\theta)$ |
-| `cdf`         | mean of individual model cumulative probabilities at each target variable value, $F_{LOP}(x)$ | mean of individual model cumulative probabilities at each target variable value, $F_{LOP}(x)$                                                                            |
-| `pmf`         | mean of individual model bin or category probabilities at each target variable value, $f_{LOP}(x)$        | mean of individual model bin or category probabilities at each target variable value, $f_{LOP}(x)$                                                                                   |
-
-: Summary of ensemble function calculations for each output type. The ensemble function determines the operation that is performed, and in the case of probabilistic output types (quantile, CDF, PMF), this also determines what ensemble distribution is generated (quantile average, $F_{Q}^{-1}(\theta)$, or linear pool, $F_{LOP}(x)$). The ensembled predictions are returned in the same output type as the inputs. Thus, the output type determines how the resulting ensemble distribution is summarized (as a quantile, $F^{-1}(\theta)$, cumulative probability, $F(x)$, or probability $f(x)$). Estimating individual model cumulative probabilities is required to compute a `linear_pool()` for predictions of `quantile` output type; see @sec-linear-pool on the linear pool operation for details. In the case of `simple_ensemble()`, we show the calculations for the default case where `agg_fun = mean`; however, if another aggregation function is chosen (e.g., `agg_fun = median`), that calculation would be performed instead. For example, `simple_ensemble(..., agg_fun = median)` applied to predictions of mean output type would return the median of individual model means. {#tbl-fns-by-output-type}{tbl-colwidths="\[14,50,36\]"}
 
 By default, `simple_ensemble()` uses the mean for the aggregation function $C$ and equal weights for all models. For point predictions with a mean or median output type, the resulting ensemble prediction is an equally weighted average of the individual models' predictions. For probabilistic predictions in a quantile format, by default `simple_ensemble()` calculates an equally weighted average of individual model target variable values at each quantile level, which is equivalent to a quantile average. For model outputs in a CDF or PMF format, by default `simple_ensemble()` computes an equally weighted average of individual model (cumulative or bin) probabilities at each target variable value, which is equivalent to the linear pool method.
 
@@ -223,9 +223,11 @@ Any aggregation function $C$ may be specified by the user. For example, a median
 
 #### Linear pool {#sec-linear-pool}
 
-The `linear_pool()` function implements the linear opinion pool (LOP) method for ensembling predictions. Currently, this function can be used to combine predictions with output types mean, quantile, CDF, and PMF. Unlike `simple_ensemble()`, this function handles its computation differently based on the output type. For the CDF, PMF, and mean output types, the linear pool method is equivalent to calling `simple_ensemble()` with a mean aggregation function (see @tbl-fns-by-output-type), since `simple_ensemble()` produces a linear pool prediction (an average of individual model cumulative or bin probabilities).
+The `linear_pool()` function implements the linear opinion pool (LOP) method for ensembling predictions. Currently, this function can be used to combine predictions with output types mean, quantile, CDF, PMF, and sample. Unlike `simple_ensemble()`, this function handles its computation differently based on the output type. For the CDF, PMF, and mean output types, the linear pool method is equivalent to calling `simple_ensemble()` with a mean aggregation function (see @tbl-fns-by-output-type), since `simple_ensemble()` produces a linear pool prediction (an average of individual model cumulative or bin probabilities).
 
-However, implementation of LOP is less straightforward for the quantile output type. This is because LOP averages cumulative probabilities at each value of the target variable, but the predictions are given as quantiles (on the scale of the target variable) for fixed quantile levels. The value for these quantile predictions will generally differ between models; hence, we are typically not provided cumulative probabilities at the same values of the target variable for all component predictions. This lack of alignment between cumulative probabilities for the same target variable values impedes computation of LOP from quantile predictions and is illustrated in panel A of @fig-example-quantile-average-and-linear-pool.
+For the sample output type, the LOP method collects a stratified draw of the individual models' predictions and pools them into a single ensemble distribution. By default, all samples are used to create this ensemble. Additionally, only equally-weighted linear pools of samples are supported by the [hubEnsembles]{.pkg} package during this time. Samples may also be converted to another common output type such as quantiles or bin probabilities (as the main scientific interest often concerns a summary of samples), and other ensemble methods may then be utilized on the alternate output type.
+
+For the quantile output type, implementation of LOP is comparatively less straightforward. This is because LOP averages cumulative probabilities at each value of the target variable, but the predictions are given as quantiles (on the scale of the target variable) for fixed quantile levels. The value for these quantile predictions will generally differ between models; hence, we are typically not provided cumulative probabilities at the same values of the target variable for all component predictions. This lack of alignment between cumulative probabilities for the same target variable values impedes computation of LOP from quantile predictions and is illustrated in panel A of @fig-example-quantile-average-and-linear-pool.
 
 ```{r example-quantile-average-and-linear-pool, echo=FALSE}
 #| label: fig-example-quantile-average-and-linear-pool
@@ -663,7 +665,8 @@ model_outputs_plot_pmf <- hubExamples::forecast_outputs |>
   ) |>
   # Reorder bin names to be in correct order
   dplyr::mutate(
-    output_type_id = factor(output_type_id,
+    output_type_id = factor(
+      output_type_id,
       levels = c("low", "moderate", "high", "very high")
     )
   )
